@@ -1,10 +1,11 @@
 import os
+import shutil
 
 from flask import Flask, jsonify, redirect, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "blob")
-ALLOWED_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif"}
+ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg"}
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -12,6 +13,14 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def mkdir(parent_dir: str, dir: str) -> None:
+    try:
+        path = os.path.join(parent_dir, dir)
+        os.mkdir(path)
+    except FileExistsError:
+        pass
 
 
 @app.post("/upload/<uuid:event_uuid>")
@@ -41,14 +50,21 @@ def download_file(event_uuid, filename):
     return send_from_directory(path, filename)
 
 
-def mkdir(parent_dir: str, dir: str) -> None:
-    try:
-        path = os.path.join(parent_dir, dir)
-        os.mkdir(path)
-    except FileExistsError:
-        pass
+@app.delete("/images/<uuid:event_uuid>/<filename>")
+def delete_file(event_uuid, filename):
+    path = os.path.join(app.config["UPLOAD_FOLDER"], str(event_uuid), filename)
+    os.remove(path)
+    return (
+        jsonify({"message": "File deleted successfully", "filename": filename}),
+        200,
+    )
 
 
-@app.route("/")
-def index():
-    return """<img src="http://localhost:5000/images/9f9a74b3-6705-487e-bdc6-0c23a8728c14/TCS-roster.png" alt="W3Schools.com">"""
+@app.delete("/images/<uuid:event_uuid>")
+def delete_all_files(event_uuid):
+    path = os.path.join(app.config["UPLOAD_FOLDER"], str(event_uuid))
+    shutil.rmtree(path)
+    return (
+        jsonify({"message": "Event deleted successfully", "event_uuid": event_uuid}),
+        200,
+    )
